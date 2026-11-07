@@ -1,0 +1,11 @@
+.venv/
+.direnv/
+__pycache__/
+*.pyc
+.env
+recordings/
+models/
+.DS_Store
+result
+result-*
+.claude/settings.local.json
