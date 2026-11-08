@@ -83,7 +83,8 @@ async def ha_session() -> AsyncIterator[ClientSession]:
         raise RuntimeError("HA_TOKEN is not set (HA: Profile -> Security -> Long-lived access tokens)")
     http_client = create_mcp_http_client(headers={"Authorization": f"Bearer {HA_TOKEN}"})
     async with http_client:
-        async with streamable_http_client(HA_MCP_URL, http_client=http_client) as (read, write):
+        # mcp 1.x (nixpkgs) yields (read, write, get_session_id); requirements.txt pins <2 to match.
+        async with streamable_http_client(HA_MCP_URL, http_client=http_client) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 yield session
@@ -105,7 +106,7 @@ def _to_openai_tools(mcp_tools: list[Any]) -> tuple[list[dict[str, Any]], dict[s
                 "function": {
                     "name": llm_name,
                     "description": t.description or "",
-                    "parameters": t.input_schema or {"type": "object", "properties": {}},
+                    "parameters": t.inputSchema or {"type": "object", "properties": {}},
                 },
             }
         )
@@ -114,7 +115,7 @@ def _to_openai_tools(mcp_tools: list[Any]) -> tuple[list[dict[str, Any]], dict[s
 
 def _result_text(result: Any) -> tuple[str, bool]:
     parts = [getattr(c, "text", None) or str(c) for c in getattr(result, "content", None) or []]
-    return "\n".join(parts), bool(getattr(result, "is_error", False))
+    return "\n".join(parts), bool(result.isError)
 
 
 # --- Local guardrails -------------------------------------------------------------
@@ -234,7 +235,7 @@ async def _run_home_command(text: str) -> HomeResult:
     async with ha_session() as session, httpx.AsyncClient(timeout=LLM_TIMEOUT_S) as llm:
         mcp_tools = [t for t in (await session.list_tools()).tools if _allowed(t.name)]
         tools, name_map = _to_openai_tools(mcp_tools)
-        schemas = {t.name: t.input_schema for t in mcp_tools}
+        schemas = {t.name: t.inputSchema for t in mcp_tools}
 
         # Prefetch device names/areas: a small model often skips GetLiveContext and guesses
         # names like "bedroom lights" that HA can't match. Read-only, so fine in dry run too.

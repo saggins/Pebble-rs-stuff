@@ -2,5 +2,5 @@ fastapi>=0.115
 uvicorn[standard]>=0.32
 python-multipart>=0.0.18
 httpx>=0.28
-mcp>=1.9
+mcp>=1.26,<2  # match nixpkgs (nix/package.nix); 2.x changed the client API
 python-dotenv>=1.0
